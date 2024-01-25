@@ -2,7 +2,7 @@
 
 REM Set this to point to the Windows SDK version where fxc is located
 REM Recommend Windows SDK 8.1 or higher.
-set windows_sdk=8.1
+@REM set windows_sdk=8.1
 
 REM Batch file for compiling the TressFX library shaders
 echo --- Compiling shaders for TressFX ---
@@ -10,7 +10,8 @@ echo --- Compiling shaders for TressFX ---
 set startdir=%cd%
 cd "%~dp0"
 
-set fxc_exe=%ProgramFiles(x86)%\Windows Kits\%windows_sdk%\bin\x86\fxc.exe
+@REM set fxc_exe=%ProgramFiles(x86)%\Windows Kits\%windows_sdk%\bin\x86\fxc.exe
+set fxc_exe="%ProgramFiles(x86)%\Windows Kits\Windows Kits\10\bin\10.0.22000.0\x64\fxc.exe"
 
 REM If fxc.exe exists in the same directory as the batch file, it will be used instead
 if exist .\fxc.exe set fxc_exe=.\fxc.exe

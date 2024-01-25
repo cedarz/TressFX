@@ -502,6 +502,42 @@ void ApplyHairTransformGlobally(uint GIndex : SV_GroupIndex, uint3 GId : SV_Grou
 	UpdateFinalVertexPositions(currentPos, sharedPos[indexForSharedMem], globalVertexIndex, localVertexIndex, numVerticesInTheStrand);
 }
 
+float4 NormalizeQuaternion(float4 q)
+{
+	float4 qq = q;
+	float n = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+
+	if (n < 1e-10f)
+	{
+		qq.w = 1;
+		return qq;
+	}
+
+	qq *= 1.0f / sqrt(n);
+	return qq;
+}
+
+// Compute a quaternion which rotates u to v. u and v must be unit vector. 
+float4 QuatFromTwoUnitVectors(float3 u, float3 v)
+{
+	float r = 1.f + dot(u, v);
+	float3 n;
+
+	// if u and v are parallel
+	if (r < 1e-7)
+	{
+		r = 0.0f;
+		n = abs(u.x) > abs(u.z) ? float3(-u.y, u.x, 0.f) : float3(0.f, -u.z, u.y);
+	}
+	else
+	{
+		n = cross(u, v);
+	}
+
+	float4 q = float4(n.x, n.y, n.z, r);
+	return NormalizeQuaternion(q);
+}
+
 //--------------------------------------------------------------------------------------
 //
 //  LocalShapeConstraints
@@ -532,12 +568,12 @@ void LocalShapeConstraints(uint GIndex : SV_GroupIndex,
 		stiffnessForLocalShapeMatching = g_StiffnessForLocalShapeMatching0;
 
 	//1.0 for stiffness makes things unstable sometimes.
-	stiffnessForLocalShapeMatching = 0.5f*min(stiffnessForLocalShapeMatching, 0.95f);
+	stiffnessForLocalShapeMatching = 0.15;// 0.5f * min(stiffnessForLocalShapeMatching, 0.95f);
 
 	//--------------------------------------------
 	// Local shape constraint for bending/twisting
 	//--------------------------------------------
-	{
+	if(0){
 		float4 pos = g_HairVertexPositions[globalRootVertexIndex + 1];
 		float4 pos_plus_one;
 		uint globalVertexIndex = 0;
@@ -593,6 +629,44 @@ void LocalShapeConstraints(uint GIndex : SV_GroupIndex,
 
 				pos = pos_plus_one;
 			}
+	}
+
+	for(int iter = 0; iter < 3; ++iter)
+	{
+		float4 boneQuat = g_Transforms[globalStrandIndex].quat;
+
+		// vertex 1 through n-1
+		for (uint localVertexIndex = 1; localVertexIndex < numVerticesInTheStrand - 1; localVertexIndex++)
+		{
+			uint globalVertexIndex = globalRootVertexIndex + localVertexIndex;
+
+			float4 pos = g_HairVertexPositions[globalVertexIndex];
+			float4 pos_plus_one = g_HairVertexPositions[globalVertexIndex + 1];
+			float4 pos_minus_one = g_HairVertexPositions[globalVertexIndex - 1];
+
+			float3 bindPos = MultQuaternionAndVector(boneQuat, g_InitialHairPositions[globalVertexIndex].xyz);
+			float3 bindPos_plus_one = MultQuaternionAndVector(boneQuat, g_InitialHairPositions[globalVertexIndex + 1].xyz);
+			float3 bindPos_minus_one = MultQuaternionAndVector(boneQuat, g_InitialHairPositions[globalVertexIndex - 1].xyz);
+
+			float3 lastVec = pos.xyz - pos_minus_one.xyz;
+
+			float3 vecBindPose = bindPos_plus_one - bindPos;
+			float3 lastVecBindPose = bindPos - bindPos_minus_one;
+			float4 rotGlobal = QuatFromTwoUnitVectors(normalize(lastVecBindPose), normalize(lastVec));
+
+			float3 orgPos_i_plus_1_InGlobalFrame = MultQuaternionAndVector(rotGlobal, vecBindPose) + pos.xyz;
+			float3 del = stiffnessForLocalShapeMatching * (orgPos_i_plus_1_InGlobalFrame - pos_plus_one.xyz);
+
+			if (IsMovable(pos))
+				pos.xyz -= del.xyz;
+
+			if (IsMovable(pos_plus_one))
+				pos_plus_one.xyz += del.xyz;
+
+
+			g_HairVertexPositions[globalVertexIndex].xyz = pos.xyz;
+			g_HairVertexPositions[globalVertexIndex + 1].xyz = pos_plus_one.xyz;
+		}
 	}
 
 	return;
@@ -1040,6 +1114,7 @@ void GenerateTransforms(uint GIndex : SV_GroupIndex,
 
 	// final rotation matrix
 	rotationMtx = mul(translationMtx, rotationMtx);
+	//rotationMtx = mul(mul(translationMtx, transpose(triangleMtx)), tfmTriangleMtx);
 
 	// translate back to the final position (as determined by the skinned mesh position)
 	translationMtx._m30 = tfmPos.x;    translationMtx._m31 = tfmPos.y;    translationMtx._m32 = tfmPos.z;    translationMtx._m33 = 1;

@@ -452,6 +452,7 @@ void TressFXAssetLoader::GenerateFollowHairs()
     // Shuffle elements by randomly exchanging each other.
     for ( int i = 0; i < m_HairAsset.m_NumGuideHairStrands; i++ )
     {
+        break;
         const int indexRand = rand() % m_HairAsset.m_NumGuideHairStrands;
         const int indexGuideStrand = i * (m_HairAsset.m_NumFollowHairsPerGuideHair + 1);
         const int indexGuideStrandRand = indexRand * (m_HairAsset.m_NumFollowHairsPerGuideHair + 1);
@@ -730,6 +731,7 @@ void TressFXAssetLoader::ProcessVertices()
     TressFXStrand* pGuideHair = NULL;
     int indexGuideHairStrand = -1;
 
+    //std::ofstream fout("D:/tressfx.txt");
     // initialize the rest of the hair data
     for ( int i = 0; i < m_HairAsset.m_NumTotalHairStrands; i++ )
     {
@@ -769,6 +771,7 @@ void TressFXAssetLoader::ProcessVertices()
 
             XMFLOAT4 v;
 
+            //fout << vertices[j].position.x << " " << vertices[j].position.y << " " << vertices[j].position.z << " " << vertices[j].invMass << std::endl;
             // temp vertices
             v.x = vertices[j].position.x;
             v.y = vertices[j].position.y;
@@ -822,6 +825,7 @@ void TressFXAssetLoader::ProcessVertices()
             m_HairAsset.m_pFollowRootOffset[i] = XMFLOAT4(offset.x, offset.y, offset.z, (float)indexGuideHairStrand);
         }
     }
+    //fout.close();
 
     // Find the bounding sphere
     BBox bBox;

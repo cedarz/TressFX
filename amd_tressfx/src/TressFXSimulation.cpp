@@ -464,7 +464,7 @@ HRESULT TressFXSimulation::Simulate(ID3D11DeviceContext* pd3dContext, float fEla
 
         pCSPerFrame->bCollision = (m_simParams.bCollision == true) ? 1 : 0;
 
-        pCSPerFrame->GravityMagnitude = m_simParams.gravityMagnitude;
+        pCSPerFrame->GravityMagnitude = 9.82;// m_simParams.gravityMagnitude;
 
         pCSPerFrame->timeStep = targetFrameRate;
 
@@ -597,14 +597,14 @@ HRESULT TressFXSimulation::Simulate(ID3D11DeviceContext* pd3dContext, float fEla
     // One thread computes one strand
 
     // If more than 16 vertices per strand, iterate on the CPU
-    if (g_TressFXNumVerticesPerStrand > 16 )
+    if (g_TressFXNumVerticesPerStrand >= 16 )
     {
-        for ( int iteration = 0; iteration < m_simParams.numLocalShapeMatchingIterations; iteration++)
+        //for ( int iteration = 0; iteration < m_simParams.numLocalShapeMatchingIterations; iteration++)
         {
             int numOfGroupsForCS_StrandLevel = (int)(((float)(m_bGuideFollowHairPrev? m_pTressFXMesh->m_HairAsset.m_NumGuideHairStrands :
                 m_pTressFXMesh->m_HairAsset.m_NumTotalHairStrands)/(float)THREAD_GROUP_SIZE)*density);
             pd3dContext->CSSetShader(m_CSLocalShapeConstraints, NULL, 0 );
-            pd3dContext->Dispatch(numOfGroupsForCS_StrandLevel, 1, 1);
+           pd3dContext->Dispatch(numOfGroupsForCS_StrandLevel, 1, 1);
         }
     }
     else
@@ -618,7 +618,7 @@ HRESULT TressFXSimulation::Simulate(ID3D11DeviceContext* pd3dContext, float fEla
     // Edge length constraints, wind and collisions
     // One thread computes one vertex
     pd3dContext->CSSetShader(m_CSLengthConstraintsWindAndCollision, NULL, 0 );
-    pd3dContext->Dispatch(numOfGroupsForCS_VertexLevel, 1, 1);
+    //pd3dContext->Dispatch(numOfGroupsForCS_VertexLevel, 1, 1);
 
     // Update follow hair vertices
     // One thread computes one vertex
